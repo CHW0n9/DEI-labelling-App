@@ -9,8 +9,9 @@ from io import BytesIO
 # 1. 默认列名
 LABEL_COLUMN = "Human Label"
 MODEL_LABEL_COLUMN = "gpt-label"
+MODEL_TEXT_COLUMN = "gpt-text"
 TEXT_COLUMN_DEFAULT = "text"
-COMPANY_COLUMN_DEFAULT = "company_name"
+COMPANY_COLUMN_DEFAULT = "company"
 
 # 2. 关键词列表 (用户提供的列表)
 USER_KEYWORD_LIST = [
@@ -160,6 +161,13 @@ def initialize_session_state_df(df_raw, text_col, company_col):
     st.session_state.df = df
     st.session_state.TEXT_COLUMN = text_col
     st.session_state.COMPANY_COLUMN = company_col
+    
+    if MODEL_TEXT_COLUMN in df.columns:
+        st.session_state.MODEL_TEXT_COLUMN = MODEL_TEXT_COLUMN
+        st.session_state.display_model_text = True
+    else:
+        st.session_state.display_model_text = False
+
     st.session_state.file_name = st.session_state.get('uploaded_file_name', '未命名')
     st.session_state.label_status = label_status
 
@@ -607,7 +615,7 @@ with st.sidebar:
             
         st.markdown("---")
 
-        # 4. Navigation Controls (unchanged)
+        # 4. Navigation Controls
         st.subheader("3. 导航")
         
         col_prev, col_next = st.columns(2)
@@ -657,8 +665,8 @@ else:
     total_count = len(df)
 
     # 使用 Session State 中存储的动态列名
-    TEXT_COLUMN_ACTIVE = st.session_state.TEXT_COLUMN
     COMPANY_COLUMN_ACTIVE = st.session_state.COMPANY_COLUMN
+    TEXT_COLUMN_ACTIVE = st.session_state.TEXT_COLUMN
     
     current_company = df.loc[current_idx, COMPANY_COLUMN_ACTIVE]
     current_text = df.loc[current_idx, TEXT_COLUMN_ACTIVE]
@@ -670,6 +678,18 @@ else:
     # 1. Display Company Name
     st.markdown(f"#### 公司名称 (`{COMPANY_COLUMN_ACTIVE}`):")
     st.code(current_company, language="")
+
+    if st.session_state.display_model_text:
+        GPT_TEXT_COLUMN_ACTIVE = st.session_state.MODEL_TEXT_COLUMN
+        current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
+        st.markdown(f"#### 机器预测说明 (`{GPT_TEXT_COLUMN_ACTIVE}`):")
+        st.markdown(
+        f'<div style="background-color: #f0f2f6; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; font-size: 110%; line-height: 1.6;">'
+        f'{current_model_text}'
+        f'</div>',
+        unsafe_allow_html=True
+        )
+        
 
     # 2. Display Highlighted Extracted Text
     highlighted_text = highlight_text(current_text, current_company, cs_pattern, ci_pattern)

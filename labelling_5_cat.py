@@ -183,10 +183,10 @@ COMPANY_SUFFIXES = [
 COMPANY_SUFFIX_REGEX = re.compile('|'.join(COMPANY_SUFFIXES), re.IGNORECASE)
 
 # 4. Define the special tokens and their replacement HTML structures
-KEYWORD_START = "[KEYWORD_START]"
-KEYWORD_END = "[KEYWORD_END]"
-COMPANY_START = "[COMPANY_START]"
-COMPANY_END = "[COMPANY_END]"
+KEYWORD_START = "<KEYWORD>"
+KEYWORD_END = "</KEYWORD>"
+COMPANY_START = "<COMPANY>"
+COMPANY_END = "</COMPANY>"
 
 KEYWORD_MARK_START = "<mark>"
 KEYWORD_MARK_END = "</mark>"
@@ -381,7 +381,7 @@ def build_keyword_regex(keyword_list):
                 ci_patterns.append(escaped_kw)
             else:
                 # Single word match: enforce word boundaries for accuracy
-                ci_patterns.append(r'(?:(?<!\w)' + escaped_kw + r'(?!\w))')
+                ci_patterns.append(r'(?:(?<![a-zA-Z0-9_])' + escaped_kw + r'(?![a-zA-Z0-9_]))')
 
     cs_pattern = "|".join(cs_keywords)
     ci_pattern = "|".join(ci_patterns)
@@ -408,7 +408,7 @@ def clean_company_name(company_name):
         return ""
     base_name = str(company_name).strip()
     name_without_suffix = COMPANY_SUFFIX_REGEX.sub('', base_name).strip()
-    raw_pattern = re.escape(name_without_suffix).replace(r'\s+', r'\s*')
+    raw_pattern = re.escape(name_without_suffix).replace(r'\ ', r'\s*')
 
     cleaned_words_str = re.sub(r'[^\w\s]', ' ', name_without_suffix)
     cleaned_words_str = re.sub(r'\s+', ' ', cleaned_words_str).strip()
@@ -465,30 +465,34 @@ def highlight_text(text, company_name, cs_pattern, ci_pattern):
         
         text = text.replace('\n', '<br>')
         
-        # IMPORTANT: Requires access to the clean_company_name function from outer scope
         company_patterns = clean_company_name(company_name)
         
-        # Replacer functions for Mode 2 (Must be defined to handle the original logic)
-        def company_replacer_mode2(match):
-            return f'{COMPANY_MARK_START}{match.group(0)}{COMPANY_MARK_END}'
-
-        def keyword_replacer_mode2(match):
-            original_match = match.group(0)
+        # Step 1: Replace company matches with unique placeholders
+        company_placeholders = {}
+        placeholder_counter = [0]
         
-            # We will use the original check for maximum compliance:
-            if re.search(r'background-color: lightblue', original_match):
-                 return original_match
-            
-            return f"{KEYWORD_MARK_START}{original_match}{KEYWORD_MARK_END}"
+        def company_replacer_mode2(match):
+            placeholder = f'\x00COMPANY_{placeholder_counter[0]}\x00'
+            company_placeholders[placeholder] = f'{COMPANY_MARK_START}{match.group(0)}{COMPANY_MARK_END}'
+            placeholder_counter[0] += 1
+            return placeholder
 
         if company_patterns:
-            full_company_pattern = r'(?:(?<!\w)' + company_patterns + r'(?!\w))'
+            full_company_pattern = r'(?:(?<![a-zA-Z0-9_])(?:' + company_patterns + r')(?![a-zA-Z0-9_]))'
             text = re.sub(full_company_pattern, company_replacer_mode2, text, flags=re.IGNORECASE)
+
+        # Step 2: Apply keyword highlighting (won't touch placeholders)
+        def keyword_replacer_mode2(match):
+            return f"{KEYWORD_MARK_START}{match.group(0)}{KEYWORD_MARK_END}"
 
         if cs_pattern:
             text = re.sub(f"({cs_pattern})", keyword_replacer_mode2, text)
         if ci_pattern:
             text = re.sub(f"({ci_pattern})", keyword_replacer_mode2, text, flags=re.IGNORECASE)
+        
+        # Step 3: Restore company placeholders with actual HTML
+        for placeholder, html in company_placeholders.items():
+            text = text.replace(placeholder, html)
             
         return text
 

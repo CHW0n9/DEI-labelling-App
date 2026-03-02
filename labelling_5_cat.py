@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import os
 from io import BytesIO
+import streamlit.components.v1 as components
 
 # --- 配置和关键词列表 ---
 
@@ -803,7 +804,21 @@ with st.sidebar:
             go_to_index(jump_id - 1)
 
         st.markdown("---")
-        st.subheader("4. 高亮规则")
+        st.subheader("4. 键盘快捷键")
+        st.markdown("""
+| 按键 | 功能 |
+|------|------|
+| `1` | 继续 |
+| `2` | 减少 |
+| `3` | 不明确 |
+| `4` | 重新包装 |
+| `0` | 不相关 |
+| `→` / `n` | 下一项 |
+| `←` / `p` | 上一项 |
+| `u` | 下一未标注 |
+""")
+        st.markdown("---")
+        st.subheader("5. 高亮规则")
         st.markdown(f"- **蓝色:** 公司名关键词 (`{st.session_state.COMPANY_COLUMN}` 提取)")
         st.markdown("- **黄色:** DEI/EDI 关键词")
         st.markdown("- **全大写**关键词区分大小写。")
@@ -857,3 +872,59 @@ else:
         f'</div>',
         unsafe_allow_html=True
     )
+
+    # --- Keyboard Shortcuts ---
+    keyboard_js = """
+    <script>
+    (function() {
+        const KEY_MAP = {
+            '0': '0 (不相关)',
+            '1': '1 (继续)',
+            '2': '2 (减少)',
+            '3': '3 (不明确)',
+            '4': '4 (重新包装)',
+            'n': '下一项',
+            'p': '上一项',
+            'u': '下一未标注',
+            'ArrowRight': '下一项',
+            'ArrowLeft': '上一项'
+        };
+
+        function findAndClickButton(targetText) {
+            const doc = window.parent.document;
+            const buttons = doc.querySelectorAll('button');
+            for (const btn of buttons) {
+                if (btn.innerText.trim() === targetText) {
+                    if (btn.disabled) return false;
+                    btn.click();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        const parentDoc = window.parent.document;
+
+        // Remove previous listener if it exists
+        if (parentDoc._labelKeyHandler) {
+            parentDoc.removeEventListener('keydown', parentDoc._labelKeyHandler);
+        }
+
+        parentDoc._labelKeyHandler = function(event) {
+            if (event.ctrlKey || event.altKey || event.metaKey) return;
+            const tag = event.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+            const key = event.key;
+            const targetText = KEY_MAP[key] || KEY_MAP[key.toLowerCase()];
+            if (targetText) {
+                event.preventDefault();
+                findAndClickButton(targetText);
+            }
+        };
+
+        parentDoc.addEventListener('keydown', parentDoc._labelKeyHandler);
+    })();
+    </script>
+    """
+    components.html(keyboard_js, height=0)

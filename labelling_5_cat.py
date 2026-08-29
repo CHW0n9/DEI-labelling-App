@@ -225,13 +225,8 @@ def restore_protected_periods(text):
     text = text.replace(_PH_ABBR, '.')
     return text
 
-CODE_BOX_STYLE = (
-    'background-color: var(--secondary-background-color);'
-    ' background-color: color-mix(in srgb, var(--background-color) 50%, var(--secondary-background-color) 50%);'
-    ' border: 0; border-radius: 8px; padding: 15px;'
-    ' font-family: "Source Code Pro", ui-monospace, SFMono-Regular, Consolas, monospace;'
-    ' font-size: 95%; line-height: 1.6; white-space: pre-wrap; word-break: break-word;'
-)
+# 内容框样式（与原版一致：浅灰底 + 细边框），夜间模式通过注入的 CSS 切换为深灰
+TEXT_BOX_STYLE = 'background-color: #f0f2f6; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; font-size: 110%; line-height: 1.6;'
 
 
 # --- Navigation Functions ---
@@ -696,6 +691,22 @@ def handle_label_input(label):
 
 st.title("IED标注工具 (2类别)")
 
+# 夜间模式：深色主题下把内容框切换为深灰
+st.markdown("""
+<style>
+@media (prefers-color-scheme: dark) {
+    .st-content-box {
+        background-color: #262730 !important;
+        border-color: #555555 !important;
+    }
+}
+body.streamlit-dark .st-content-box {
+    background-color: #262730 !important;
+    border-color: #555555 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # --- Sidebar for Data Loading and Column Selection ---
 with st.sidebar:
     st.header("1. 数据加载与配置")
@@ -921,7 +932,7 @@ else:
         st.markdown(f"#### 文章标题 (`{TITLE_COLUMN_ACTIVE}`):")
         if pd.notna(current_title) and str(current_title).strip():
             title_html = str(current_title).replace('\n', '<br>')
-            st.markdown(f'<div style="{CODE_BOX_STYLE}">{title_html}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">{title_html}</div>', unsafe_allow_html=True)
         else:
             st.caption("(无)")
 
@@ -931,7 +942,7 @@ else:
         current_keywords = df.loc[current_idx, KEYWORD_COLUMN_ACTIVE]
         st.markdown(f"#### 匹配关键词 (`{KEYWORD_COLUMN_ACTIVE}`):")
         if pd.notna(current_keywords) and str(current_keywords).strip():
-            st.markdown(f'<div style="{CODE_BOX_STYLE}">{current_keywords}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">{current_keywords}</div>', unsafe_allow_html=True)
         else:
             st.caption("(无)")
 
@@ -941,7 +952,7 @@ else:
         current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
         st.markdown(f"#### 机器预测说明 (`{GPT_TEXT_COLUMN_ACTIVE}`):")
         st.markdown(
-        f'<div style="{CODE_BOX_STYLE}">'
+        f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">'
         f'{current_model_text}'
         f'</div>',
         unsafe_allow_html=True
@@ -953,14 +964,14 @@ else:
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     
     st.markdown(
-        f'<div style="{CODE_BOX_STYLE}">'
+        f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">'
         f'{highlighted_text}'
         f'</div>',
         unsafe_allow_html=True
     )
 
     # --- Keyboard Shortcuts ---
-    keyboard_js = """
+    keyboard_js = r"""
     <script>
     (function() {
         const KEY_MAP = {
@@ -987,6 +998,26 @@ else:
         }
 
         const parentDoc = window.parent.document;
+
+        // 检测深色主题：根据应用容器背景亮度给 <body> 加/删 streamlit-dark 类
+        function applyThemeClass() {
+            const app = parentDoc.querySelector('[data-testid="stAppViewContainer"]');
+            if (!app) return;
+            const bg = getComputedStyle(app).backgroundColor;
+            const m = bg.match(/rgba?\(([^)]+)\)/);
+            if (m) {
+                const parts = m[1].split(',').map(s => parseFloat(s));
+                const lum = 0.2126 * parts[0] + 0.7152 * parts[1] + 0.0722 * parts[2];
+                parentDoc.body.classList.toggle('streamlit-dark', lum < 128);
+            }
+        }
+        applyThemeClass();
+        if (window.parent.MutationObserver) {
+            new MutationObserver(applyThemeClass).observe(
+                parentDoc.documentElement,
+                { attributes: true }
+            );
+        }
 
         // Remove previous listener if it exists
         if (parentDoc._labelKeyHandler) {

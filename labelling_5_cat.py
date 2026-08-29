@@ -965,9 +965,9 @@ else:
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     
     st.markdown(
-        f'<pre class="st-content-pre" style="{CODE_PRE_STYLE}">'
+        f'<div class="st-content-pre" style="{CODE_PRE_STYLE}">'
         f'{highlighted_text}'
-        f'</pre>',
+        f'</div>',
         unsafe_allow_html=True
     )
 

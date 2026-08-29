@@ -200,6 +200,9 @@ SENTENCE_UNDERLINE_END = '</span>'
 
 SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？.!?；;])')
 
+TEXT_BOX_STYLE = 'background-color: rgba(127, 127, 127, 0.12); padding: 15px; border-radius: 5px; border: 1px solid rgba(127, 127, 127, 0.45); font-size: 110%; line-height: 1.6;'
+KEYWORD_CHIP_STYLE = 'display: inline-block; background-color: rgba(127, 127, 127, 0.18); color: inherit; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 10px; font-size: 90%;'
+
 
 # --- Navigation Functions ---
 
@@ -344,14 +347,23 @@ def initialize_session_state_df(df_raw, text_col, company_col, title_col=None, k
     st.rerun()
 
 
-def save_data(df, auto_save=True):
-    """将 DataFrame 保存到内存中的 Excel 文件。"""
+def save_data(df, auto_save=True, fmt=None):
+    """将 DataFrame 保存到内存文件 (默认 CSV，避免长文本被截断)。"""
     try:
-        # 使用 BytesIO 在内存中创建 Excel 文件
+        fmt = fmt or st.session_state.get('save_format', 'csv')
         output = BytesIO()
-        df.to_excel(output, index=False)
+        if fmt == 'csv':
+            df.to_csv(output, index=False, encoding='utf-8-sig')
+            mime = 'text/csv'
+            ext = '.csv'
+        else:
+            df.to_excel(output, index=False)
+            mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ext = '.xlsx'
         output.seek(0)
         st.session_state.saved_data = output
+        st.session_state.saved_mime = mime
+        st.session_state.saved_ext = ext
         
         if not auto_save:
             st.success(f"**人工保存成功！** 标注结果已保存到内存。请使用下方的下载按钮获取最新文件。")
@@ -540,7 +552,7 @@ def create_and_show_stacked_bar(df):
     label_info = {
         1: {'name': '1 (IED Commitment)', 'color': '#28A745'},
         0: {'name': '0 (None)', 'color': '#AAAAAA'},
-        -1: {'name': '-1 (未标注)', 'color': '#FFFFFF'}
+        -1: {'name': '-1 (未标注)', 'color': '#D0D0D0'}
     }
 
     # 统计每个标签的数量并计算百分比
@@ -577,10 +589,10 @@ def create_and_show_stacked_bar(df):
             .legend-table th, .legend-table td {
                 padding: 6px 12px;
                 text-align: left;
-                border: 1px solid #e0e0e0;
+                border: 1px solid rgba(127, 127, 127, 0.35);
             }
             .legend-table th {
-                background-color: var(--background-color);
+                background-color: rgba(127, 127, 127, 0.15);
                 font-weight: bold;
             }
             .color-box {
@@ -588,7 +600,7 @@ def create_and_show_stacked_bar(df):
                 height: 12px; 
                 border-radius: 3px; 
                 display: inline-block; 
-                border: 1px solid #ccc;
+                border: 1px solid rgba(127, 127, 127, 0.5);
             }
         </style>
     """
@@ -744,6 +756,15 @@ with st.sidebar:
         # 1. Status and Save
         st.subheader("数据操作")
         
+        save_format = st.selectbox(
+            "导出格式",
+            ["csv", "xlsx"],
+            index=0,
+            help="CSV 可避免长文本被 Excel 单元格截断",
+            key='save_format_select'
+        )
+        st.session_state.save_format = save_format
+        
         # 保存/下载按钮
         col_save, col_download = st.columns(2)
         with col_save:
@@ -752,11 +773,12 @@ with st.sidebar:
                 
         with col_download:
             if 'saved_data' in st.session_state:
+                base_name = st.session_state.file_name.replace('.xlsx', '').replace('.csv', '')
                 st.download_button(
                     label="⬇️下载标注结果",
                     data=st.session_state.saved_data,
-                    file_name=f"labeled_{st.session_state.file_name.replace('.xlsx', '').replace('.csv', '')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    file_name=f"labeled_{base_name}{st.session_state.get('saved_ext', '.csv')}",
+                    mime=st.session_state.get('saved_mime', 'text/csv'),
                     use_container_width=True
                 )
             else:
@@ -886,10 +908,8 @@ else:
         st.markdown(f"#### 文章标题 (`{TITLE_COLUMN_ACTIVE}`):")
         if pd.notna(current_title) and str(current_title).strip():
             title_html = str(current_title).replace('\n', '<br>')
-            st.markdown(
-                f'<div style="background-color: var(--secondary-background-color); padding: 12px 15px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 110%; font-weight: 600; line-height: 1.6;">{title_html}</div>',
-                unsafe_allow_html=True
-            )
+            title_box_style = TEXT_BOX_STYLE.replace('padding: 15px;', 'padding: 12px 15px;').replace('font-size: 110%;', 'font-size: 110%; font-weight: 600;')
+            st.markdown(f'<div style="{title_box_style}">{title_html}</div>', unsafe_allow_html=True)
         else:
             st.caption("(无)")
 
@@ -900,7 +920,8 @@ else:
         st.markdown(f"#### 匹配关键词 (`{KEYWORD_COLUMN_ACTIVE}`):")
         if pd.notna(current_keywords) and str(current_keywords).strip():
             kw_list = [k.strip() for k in re.split(r'[;；,，]+', str(current_keywords)) if k.strip()]
-            st.markdown(" ".join(f"`{k}`" for k in kw_list))
+            chips_html = ''.join(f'<span style="{KEYWORD_CHIP_STYLE}">{k}</span>' for k in kw_list)
+            st.markdown(f'<div style="{TEXT_BOX_STYLE}">{chips_html}</div>', unsafe_allow_html=True)
         else:
             st.caption("(无)")
 
@@ -910,7 +931,7 @@ else:
         current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
         st.markdown(f"#### 机器预测说明 (`{GPT_TEXT_COLUMN_ACTIVE}`):")
         st.markdown(
-        f'<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 110%; line-height: 1.6;">'
+        f'<div style="{TEXT_BOX_STYLE}">'
         f'{current_model_text}'
         f'</div>',
         unsafe_allow_html=True
@@ -922,7 +943,7 @@ else:
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     
     st.markdown(
-        f'<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 110%; line-height: 1.6;">'
+        f'<div style="{TEXT_BOX_STYLE}">'
         f'{highlighted_text}'
         f'</div>',
         unsafe_allow_html=True

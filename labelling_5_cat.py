@@ -200,6 +200,31 @@ SENTENCE_UNDERLINE_END = '</span>'
 
 SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？.!?；;])')
 
+# 非句末句点的保护：小数 (3.5)、缩写 (U.S./Inc./Mr.)、省略号 (...)，
+# 这些句点不应被当作句末标点来切句。
+_PH_ELLIPSIS = '\x01ELLIPSIS\x01'
+_PH_DECIMAL = '\x01DECIMAL\x01'
+_PH_ABBR = '\x01ABBR\x01'
+ABBREVIATION_REGEX = re.compile(
+    r'\b(?:Mr|Mrs|Ms|Dr|Prof|Jr|Sr|St|Inc|Corp|Ltd|Co|e\.g|i\.e|etc|vs|a\.m|p\.m|No|Fig|Ph\.D|M\.D|B\.A|M\.A|B\.Sc|M\.Sc|U\.S|U\.K|U\.N|S\.A|A\.G|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept?|Oct|Nov|Dec|Ave|Blvd|Dept|Esq|Capt|Col|Sgt|Lt|Gov|Sen|Rep|Gen|Rev|Hon|Mt|Ft)\b\.',
+    re.IGNORECASE
+)
+
+def protect_non_sentence_periods(text):
+    """将小数、缩写、省略号中的句点替换为占位符，避免切句时误判为句末。"""
+    text = re.sub(r'\.\.\.', _PH_ELLIPSIS, text)
+    text = re.sub(r'(\d)\.(\d)', lambda m: m.group(1) + _PH_DECIMAL + m.group(2), text)
+    text = re.sub(r'\.(?=\d)', _PH_DECIMAL, text)
+    text = ABBREVIATION_REGEX.sub(lambda m: m.group(0).replace('.', _PH_ABBR), text)
+    return text
+
+def restore_protected_periods(text):
+    """将占位符还原为原文中的句点。"""
+    text = text.replace(_PH_ELLIPSIS, '...')
+    text = text.replace(_PH_DECIMAL, '.')
+    text = text.replace(_PH_ABBR, '.')
+    return text
+
 CODE_BOX_STYLE = (
     'background-color: var(--secondary-background-color);'
     ' background-color: color-mix(in srgb, var(--background-color) 50%, var(--secondary-background-color) 50%);'
@@ -439,7 +464,8 @@ def clean_company_name(company_name):
 
 def add_sentence_underline(text):
     """给包含关键词/公司名特殊 token 的句子添加下划线。"""
-    parts = SENTENCE_DELIMITER_REGEX.split(text)
+    masked = protect_non_sentence_periods(text)
+    parts = SENTENCE_DELIMITER_REGEX.split(masked)
     result = []
     i = 0
     while i < len(parts):
@@ -451,7 +477,7 @@ def add_sentence_underline(text):
         else:
             result.append(sentence)
         i += 2
-    return ''.join(result)
+    return restore_protected_periods(''.join(result))
 
 def highlight_text(text, company_name, cs_pattern, ci_pattern):
     """

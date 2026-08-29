@@ -697,14 +697,10 @@ def handle_label_input(label):
 
 st.title("IED标注工具 (2类别)")
 
-# 夜间模式：深色主题下把待标注文本的 <pre> 切换为 st.code 的深灰背景
+# 夜间模式：JS 按 Streamlit 实际主题给 body 加/删 streamlit-dark 类，
+# 深色主题下把待标注文本切换为 st.code 的深灰背景
 st.markdown("""
 <style>
-@media (prefers-color-scheme: dark) {
-    .st-content-pre {
-        background-color: #1a1c23 !important;
-    }
-}
 body.streamlit-dark .st-content-pre {
     background-color: #1a1c23 !important;
 }
@@ -1000,11 +996,9 @@ else:
 
         const parentDoc = window.parent.document;
 
-        // 检测深色主题：根据应用容器背景亮度给 <body> 加/删 streamlit-dark 类
+        // 检测深色主题：读取 body 实际背景亮度，给 body 加/删 streamlit-dark 类
         function applyThemeClass() {
-            const app = parentDoc.querySelector('[data-testid="stAppViewContainer"]');
-            if (!app) return;
-            const bg = getComputedStyle(app).backgroundColor;
+            const bg = getComputedStyle(parentDoc.body).backgroundColor;
             const m = bg.match(/rgba?\(([^)]+)\)/);
             if (m) {
                 const parts = m[1].split(',').map(s => parseFloat(s));
@@ -1016,7 +1010,7 @@ else:
         if (window.parent.MutationObserver) {
             new MutationObserver(applyThemeClass).observe(
                 parentDoc.documentElement,
-                { attributes: true }
+                { attributes: true, subtree: true }
             );
         }
 

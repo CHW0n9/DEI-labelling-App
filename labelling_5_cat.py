@@ -11,8 +11,9 @@ import streamlit.components.v1 as components
 LABEL_COLUMN = "Human Label"
 MODEL_LABEL_COLUMN = "gpt-label"
 MODEL_TEXT_COLUMN = "gpt-text"
-TEXT_COLUMN_DEFAULT = "text"
-COMPANY_COLUMN_DEFAULT = "company"
+TEXT_COLUMN_DEFAULT = "Extracted Sentences"
+COMPANY_COLUMN_DEFAULT = "Company Names"
+TITLE_COLUMN_DEFAULT = "Title"
 
 # 2. 关键词列表 (用户提供的列表)
 USER_KEYWORD_LIST = [
@@ -285,7 +286,7 @@ def load_data_file(uploaded_file):
         st.error(f"读取文件失败: {e}")
         return None
 
-def initialize_session_state_df(df_raw, text_col, company_col):
+def initialize_session_state_df(df_raw, text_col, company_col, title_col=None, keyword_col=None):
     """
     处理原始DataFrame：
     1. 校验列名。
@@ -319,6 +320,8 @@ def initialize_session_state_df(df_raw, text_col, company_col):
     st.session_state.df = df
     st.session_state.TEXT_COLUMN = text_col
     st.session_state.COMPANY_COLUMN = company_col
+    st.session_state.TITLE_COLUMN = title_col
+    st.session_state.KEYWORD_COLUMN = keyword_col
     
     if MODEL_TEXT_COLUMN in df.columns:
         st.session_state.MODEL_TEXT_COLUMN = MODEL_TEXT_COLUMN
@@ -688,7 +691,12 @@ with st.sidebar:
             
             default_text = TEXT_COLUMN_DEFAULT if TEXT_COLUMN_DEFAULT in all_cols else (all_cols[0] if len(all_cols)>0 else None)
             default_company = COMPANY_COLUMN_DEFAULT if COMPANY_COLUMN_DEFAULT in all_cols else (all_cols[1] if len(all_cols)>1 else default_text)
+            default_title = TITLE_COLUMN_DEFAULT if TITLE_COLUMN_DEFAULT in all_cols else None
+            default_keyword = next((c for c in all_cols if 'keyword' in c.lower()), None)
+            cols_optional = [None] + all_cols
 
+            def _opt_index(value):
+                return cols_optional.index(value) if value in cols_optional else 0
 
             text_col_select = st.selectbox(
                 "请选择**文本内容列**:",
@@ -704,11 +712,27 @@ with st.sidebar:
                 key='company_col_select'
             )
 
+            title_col_select = st.selectbox(
+                "请选择**标题列** (可选):",
+                cols_optional,
+                format_func=lambda c: '无 (不显示)' if c is None else c,
+                index=_opt_index(default_title),
+                key='title_col_select'
+            )
+
+            keyword_col_select = st.selectbox(
+                "请选择**关键词列** (可选):",
+                cols_optional,
+                format_func=lambda c: '无 (不显示)' if c is None else c,
+                index=_opt_index(default_keyword),
+                key='keyword_col_select'
+            )
+
             if st.button("🚀 **加载数据并开始标注**", type="primary", use_container_width=True):
                 if text_col_select == company_col_select:
                     st.error("文本内容列和公司名列不能相同，请重新选择。")
                 else:
-                    initialize_session_state_df(df_raw, text_col_select, company_col_select)
+                    initialize_session_state_df(df_raw, text_col_select, company_col_select, title_col_select, keyword_col_select)
         
     
     # 状态：主DF已加载
@@ -855,6 +879,32 @@ else:
     st.markdown(f"#### 公司名称 (`{COMPANY_COLUMN_ACTIVE}`):")
     st.code(current_company, language="")
 
+    # 2. Display Title
+    if st.session_state.get('TITLE_COLUMN'):
+        TITLE_COLUMN_ACTIVE = st.session_state.TITLE_COLUMN
+        current_title = df.loc[current_idx, TITLE_COLUMN_ACTIVE]
+        st.markdown(f"#### 文章标题 (`{TITLE_COLUMN_ACTIVE}`):")
+        if pd.notna(current_title) and str(current_title).strip():
+            title_html = str(current_title).replace('\n', '<br>')
+            st.markdown(
+                f'<div style="background-color: var(--secondary-background-color); padding: 12px 15px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 110%; font-weight: 600; line-height: 1.6;">{title_html}</div>',
+                unsafe_allow_html=True
+            )
+        else:
+            st.caption("(无)")
+
+    # 3. Display Matched Keywords
+    if st.session_state.get('KEYWORD_COLUMN'):
+        KEYWORD_COLUMN_ACTIVE = st.session_state.KEYWORD_COLUMN
+        current_keywords = df.loc[current_idx, KEYWORD_COLUMN_ACTIVE]
+        st.markdown(f"#### 匹配关键词 (`{KEYWORD_COLUMN_ACTIVE}`):")
+        if pd.notna(current_keywords) and str(current_keywords).strip():
+            kw_list = [k.strip() for k in re.split(r'[;；,，]+', str(current_keywords)) if k.strip()]
+            st.markdown(" ".join(f"`{k}`" for k in kw_list))
+        else:
+            st.caption("(无)")
+
+    # 4. Display Model Text
     if st.session_state.display_model_text:
         GPT_TEXT_COLUMN_ACTIVE = st.session_state.MODEL_TEXT_COLUMN
         current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
@@ -867,7 +917,7 @@ else:
         )
         
 
-    # 2. Display Highlighted Extracted Text
+    # 5. Display Highlighted Extracted Text
     highlighted_text = highlight_text(current_text, current_company, cs_pattern, ci_pattern)
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     

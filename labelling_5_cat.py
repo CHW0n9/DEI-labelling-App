@@ -190,7 +190,7 @@ KEYWORD_END = "</KEYWORD>"
 COMPANY_START = "<COMPANY>"
 COMPANY_END = "</COMPANY>"
 
-KEYWORD_MARK_START = '<span style="background-color: #FFE3C9; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
+KEYWORD_MARK_START = '<span style="background-color: #FFE0C4; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
 KEYWORD_MARK_END = '</span>'
 COMPANY_MARK_START = '<span style="background-color: lightblue; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
 COMPANY_MARK_END = '</span>'

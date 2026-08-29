@@ -197,7 +197,7 @@ COMPANY_MARK_END = '</span>'
 SENTENCE_UNDERLINE_START = '<span style="text-decoration: underline;">'
 SENTENCE_UNDERLINE_END = '</span>'
 
-SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？!?；;])')
+SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？.!?；;])')
 
 
 # --- Navigation Functions ---

@@ -225,8 +225,14 @@ def restore_protected_periods(text):
     text = text.replace(_PH_ABBR, '.')
     return text
 
-# 内容框样式（与原版一致：浅灰底 + 细边框），夜间模式通过注入的 CSS 切换为深灰
-TEXT_BOX_STYLE = 'background-color: #f0f2f6; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; font-size: 110%; line-height: 1.6;'
+# 待标注文本用 <pre> 复刻 st.code 的样式（浅灰底、无边框、等宽），夜间模式由注入的 CSS 切换为深灰
+CODE_PRE_STYLE = (
+    'background-color: #f7f8fa;'
+    ' border: 0; border-radius: 8px; padding: 16px;'
+    ' font-family: "Source Code Pro", monospace;'
+    ' font-size: 14px; font-weight: 400; line-height: 1.6;'
+    ' white-space: pre-wrap; overflow-wrap: break-word;'
+)
 
 
 # --- Navigation Functions ---
@@ -691,18 +697,16 @@ def handle_label_input(label):
 
 st.title("IED标注工具 (2类别)")
 
-# 夜间模式：深色主题下把内容框切换为深灰
+# 夜间模式：深色主题下把待标注文本的 <pre> 切换为 st.code 的深灰背景
 st.markdown("""
 <style>
 @media (prefers-color-scheme: dark) {
-    .st-content-box {
-        background-color: #262730 !important;
-        border-color: #555555 !important;
+    .st-content-pre {
+        background-color: #1a1c23 !important;
     }
 }
-body.streamlit-dark .st-content-box {
-    background-color: #262730 !important;
-    border-color: #555555 !important;
+body.streamlit-dark .st-content-pre {
+    background-color: #1a1c23 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -931,8 +935,7 @@ else:
         current_title = df.loc[current_idx, TITLE_COLUMN_ACTIVE]
         st.markdown(f"#### 文章标题 (`{TITLE_COLUMN_ACTIVE}`):")
         if pd.notna(current_title) and str(current_title).strip():
-            title_html = str(current_title).replace('\n', '<br>')
-            st.markdown(f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">{title_html}</div>', unsafe_allow_html=True)
+            st.code(str(current_title), language="", wrap_lines=True)
         else:
             st.caption("(无)")
 
@@ -942,7 +945,7 @@ else:
         current_keywords = df.loc[current_idx, KEYWORD_COLUMN_ACTIVE]
         st.markdown(f"#### 匹配关键词 (`{KEYWORD_COLUMN_ACTIVE}`):")
         if pd.notna(current_keywords) and str(current_keywords).strip():
-            st.markdown(f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">{current_keywords}</div>', unsafe_allow_html=True)
+            st.code(str(current_keywords), language="", wrap_lines=True)
         else:
             st.caption("(无)")
 
@@ -951,12 +954,10 @@ else:
         GPT_TEXT_COLUMN_ACTIVE = st.session_state.MODEL_TEXT_COLUMN
         current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
         st.markdown(f"#### 机器预测说明 (`{GPT_TEXT_COLUMN_ACTIVE}`):")
-        st.markdown(
-        f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">'
-        f'{current_model_text}'
-        f'</div>',
-        unsafe_allow_html=True
-        )
+        if pd.notna(current_model_text) and str(current_model_text).strip():
+            st.code(str(current_model_text), language="", wrap_lines=True)
+        else:
+            st.caption("(无)")
         
 
     # 5. Display Highlighted Extracted Text
@@ -964,9 +965,9 @@ else:
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     
     st.markdown(
-        f'<div class="st-content-box" style="{TEXT_BOX_STYLE}">'
+        f'<pre class="st-content-pre" style="{CODE_PRE_STYLE}">'
         f'{highlighted_text}'
-        f'</div>',
+        f'</pre>',
         unsafe_allow_html=True
     )
 

@@ -195,7 +195,7 @@ KEYWORD_MARK_END = "</mark>"
 COMPANY_MARK_START = '<span style="background-color: lightblue; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
 COMPANY_MARK_END = '</span>'
 
-SENTENCE_UNDERLINE_START = '<span class="st-underline" style="text-decoration: underline; text-decoration-thickness: 1.5px;">'
+SENTENCE_UNDERLINE_START = '<span class="st-underline" style="text-decoration: underline; text-decoration-thickness: 0.5px;">'
 SENTENCE_UNDERLINE_END = '</span>'
 
 SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？.!?；;])')
@@ -705,10 +705,10 @@ body.streamlit-dark .st-content-pre {
     background-color: #1a1c23 !important;
 }
 .st-underline {
-    text-decoration-color: #757575;
+    text-decoration-color: #A3A8B8;
 }
 body.streamlit-dark .st-underline {
-    text-decoration-color: #B0B0B0;
+    text-decoration-color: #6B7280;
 }
 </style>
 """, unsafe_allow_html=True)

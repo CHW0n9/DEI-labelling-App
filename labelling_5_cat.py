@@ -190,9 +190,9 @@ KEYWORD_END = "</KEYWORD>"
 COMPANY_START = "<COMPANY>"
 COMPANY_END = "</COMPANY>"
 
-KEYWORD_MARK_START = '<span style="background-color: #FFE0C4; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
+KEYWORD_MARK_START = '<span style="background-color: #FFD8B5; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
 KEYWORD_MARK_END = '</span>'
-COMPANY_MARK_START = '<span style="background-color: lightblue; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
+COMPANY_MARK_START = '<span style="background-color: #9FD4E6; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
 COMPANY_MARK_END = '</span>'
 
 SENTENCE_UNDERLINE_START = '<span class="st-underline" style="text-decoration: underline; text-decoration-thickness: 0.5px;">'
@@ -708,6 +708,15 @@ body.streamlit-dark .st-underline {
     text-align: center !important;
     line-height: 1.3;
 }
+/* 标注按钮的数字放大 50% (JS 会给两个标注按钮加 st-big-num 类) */
+.st-big-num {
+    display: block !important;
+    width: 100% !important;
+}
+.st-big-num::first-line {
+    font-size: 150% !important;
+    line-height: 1.4;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1008,6 +1017,18 @@ else:
                 { attributes: true, subtree: true }
             );
         }
+
+        // 给两个标注按钮加 st-big-num 类（数字放大）
+        function tagLabelButtons() {
+            const btns = parentDoc.querySelectorAll('button');
+            for (const b of btns) {
+                const t = (b.innerText || '').trim();
+                if (t === '1\nIED Commitment' || t === '0\nNone') {
+                    b.classList.add('st-big-num');
+                }
+            }
+        }
+        tagLabelButtons();
 
         // Remove previous listener if it exists
         if (parentDoc._labelKeyHandler) {

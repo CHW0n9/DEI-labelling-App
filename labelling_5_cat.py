@@ -191,7 +191,7 @@ COMPANY_END = "</COMPANY>"
 
 KEYWORD_MARK_START = "<mark>"
 KEYWORD_MARK_END = "</mark>"
-COMPANY_MARK_START = '<span style="background-color: lightblue; padding: 2px 4px; border-radius: 3px;">'
+COMPANY_MARK_START = '<span style="background-color: lightblue; color: #1f2937; padding: 2px 4px; border-radius: 3px;">'
 COMPANY_MARK_END = '</span>'
 
 SENTENCE_UNDERLINE_START = '<span style="text-decoration: underline;">'
@@ -577,7 +577,7 @@ def create_and_show_stacked_bar(df):
                 border: 1px solid #e0e0e0;
             }
             .legend-table th {
-                background-color: #f8f9fa;
+                background-color: var(--background-color);
                 font-weight: bold;
             }
             .color-box {
@@ -860,7 +860,7 @@ else:
         current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
         st.markdown(f"#### 机器预测说明 (`{GPT_TEXT_COLUMN_ACTIVE}`):")
         st.markdown(
-        f'<div style="background-color: #f0f2f6; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; font-size: 110%; line-height: 1.6;">'
+        f'<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 110%; line-height: 1.6;">'
         f'{current_model_text}'
         f'</div>',
         unsafe_allow_html=True
@@ -872,7 +872,7 @@ else:
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     
     st.markdown(
-        f'<div style="background-color: #f0f2f6; padding: 15px; border-radius: 5px; border: 1px solid #e0e0e0; font-size: 110%; line-height: 1.6;">'
+        f'<div style="background-color: var(--secondary-background-color); padding: 15px; border-radius: 5px; border: 1px solid var(--border-color); font-size: 110%; line-height: 1.6;">'
         f'{highlighted_text}'
         f'</div>',
         unsafe_allow_html=True

@@ -200,8 +200,13 @@ SENTENCE_UNDERLINE_END = '</span>'
 
 SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？.!?；;])')
 
-TEXT_BOX_STYLE = 'background-color: rgba(127, 127, 127, 0.12); padding: 15px; border-radius: 5px; border: 1px solid rgba(127, 127, 127, 0.45); font-size: 110%; line-height: 1.6;'
-KEYWORD_CHIP_STYLE = 'display: inline-block; background-color: rgba(127, 127, 127, 0.18); color: inherit; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 10px; font-size: 90%;'
+CODE_BOX_STYLE = (
+    'background-color: var(--secondary-background-color);'
+    ' background-color: color-mix(in srgb, var(--background-color) 50%, var(--secondary-background-color) 50%);'
+    ' border: 0; border-radius: 8px; padding: 15px;'
+    ' font-family: "Source Code Pro", ui-monospace, SFMono-Regular, Consolas, monospace;'
+    ' font-size: 95%; line-height: 1.6; white-space: pre-wrap; word-break: break-word;'
+)
 
 
 # --- Navigation Functions ---
@@ -347,23 +352,14 @@ def initialize_session_state_df(df_raw, text_col, company_col, title_col=None, k
     st.rerun()
 
 
-def save_data(df, auto_save=True, fmt=None):
-    """将 DataFrame 保存到内存文件 (默认 CSV，避免长文本被截断)。"""
+def save_data(df, auto_save=True):
+    """将 DataFrame 保存到内存中的 CSV 文件 (避免长文本被截断)。"""
     try:
-        fmt = fmt or st.session_state.get('save_format', 'csv')
+        # 使用 BytesIO 在内存中创建 CSV 文件 (utf-8-sig 保证 Excel 打开中文不乱码)
         output = BytesIO()
-        if fmt == 'csv':
-            df.to_csv(output, index=False, encoding='utf-8-sig')
-            mime = 'text/csv'
-            ext = '.csv'
-        else:
-            df.to_excel(output, index=False)
-            mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            ext = '.xlsx'
+        df.to_csv(output, index=False, encoding='utf-8-sig')
         output.seek(0)
         st.session_state.saved_data = output
-        st.session_state.saved_mime = mime
-        st.session_state.saved_ext = ext
         
         if not auto_save:
             st.success(f"**人工保存成功！** 标注结果已保存到内存。请使用下方的下载按钮获取最新文件。")
@@ -756,15 +752,6 @@ with st.sidebar:
         # 1. Status and Save
         st.subheader("数据操作")
         
-        save_format = st.selectbox(
-            "导出格式",
-            ["csv", "xlsx"],
-            index=0,
-            help="CSV 可避免长文本被 Excel 单元格截断",
-            key='save_format_select'
-        )
-        st.session_state.save_format = save_format
-        
         # 保存/下载按钮
         col_save, col_download = st.columns(2)
         with col_save:
@@ -777,8 +764,8 @@ with st.sidebar:
                 st.download_button(
                     label="⬇️下载标注结果",
                     data=st.session_state.saved_data,
-                    file_name=f"labeled_{base_name}{st.session_state.get('saved_ext', '.csv')}",
-                    mime=st.session_state.get('saved_mime', 'text/csv'),
+                    file_name=f"labeled_{base_name}.csv",
+                    mime="text/csv",
                     use_container_width=True
                 )
             else:
@@ -908,8 +895,7 @@ else:
         st.markdown(f"#### 文章标题 (`{TITLE_COLUMN_ACTIVE}`):")
         if pd.notna(current_title) and str(current_title).strip():
             title_html = str(current_title).replace('\n', '<br>')
-            title_box_style = TEXT_BOX_STYLE.replace('padding: 15px;', 'padding: 12px 15px;').replace('font-size: 110%;', 'font-size: 110%; font-weight: 600;')
-            st.markdown(f'<div style="{title_box_style}">{title_html}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="{CODE_BOX_STYLE}">{title_html}</div>', unsafe_allow_html=True)
         else:
             st.caption("(无)")
 
@@ -919,9 +905,7 @@ else:
         current_keywords = df.loc[current_idx, KEYWORD_COLUMN_ACTIVE]
         st.markdown(f"#### 匹配关键词 (`{KEYWORD_COLUMN_ACTIVE}`):")
         if pd.notna(current_keywords) and str(current_keywords).strip():
-            kw_list = [k.strip() for k in re.split(r'[;；,，]+', str(current_keywords)) if k.strip()]
-            chips_html = ''.join(f'<span style="{KEYWORD_CHIP_STYLE}">{k}</span>' for k in kw_list)
-            st.markdown(f'<div style="{TEXT_BOX_STYLE}">{chips_html}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="{CODE_BOX_STYLE}">{current_keywords}</div>', unsafe_allow_html=True)
         else:
             st.caption("(无)")
 
@@ -931,7 +915,7 @@ else:
         current_model_text = df.loc[current_idx, GPT_TEXT_COLUMN_ACTIVE]
         st.markdown(f"#### 机器预测说明 (`{GPT_TEXT_COLUMN_ACTIVE}`):")
         st.markdown(
-        f'<div style="{TEXT_BOX_STYLE}">'
+        f'<div style="{CODE_BOX_STYLE}">'
         f'{current_model_text}'
         f'</div>',
         unsafe_allow_html=True
@@ -943,7 +927,7 @@ else:
     st.markdown(f"#### 待标注文本 (`{TEXT_COLUMN_ACTIVE}`) - 关键词已高亮:")
     
     st.markdown(
-        f'<div style="{TEXT_BOX_STYLE}">'
+        f'<div style="{CODE_BOX_STYLE}">'
         f'{highlighted_text}'
         f'</div>',
         unsafe_allow_html=True

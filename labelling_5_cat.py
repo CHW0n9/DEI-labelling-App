@@ -378,19 +378,12 @@ def initialize_session_state_df(df_raw, text_col, company_col, title_col=None, k
     st.rerun()
 
 
-def save_data(df, auto_save=True):
-    """将 DataFrame 保存到内存中的 CSV 文件 (避免长文本被截断)。"""
-    try:
-        # 使用 BytesIO 在内存中创建 CSV 文件 (utf-8-sig 保证 Excel 打开中文不乱码)
-        output = BytesIO()
-        df.to_csv(output, index=False, encoding='utf-8-sig')
-        output.seek(0)
-        st.session_state.saved_data = output
-        
-        if not auto_save:
-            st.success(f"**人工保存成功！** 标注结果已保存到内存。请使用下方的下载按钮获取最新文件。")
-    except Exception as e:
-        st.error(f"**保存失败！** 错误: {e}")
+def df_to_csv_bytes(df):
+    """将 DataFrame 转成内存中的 CSV 字节 (utf-8-sig，避免长文本被截断、Excel 打开中文不乱码)。"""
+    output = BytesIO()
+    df.to_csv(output, index=False, encoding='utf-8-sig')
+    output.seek(0)
+    return output
 
 # --- Utility Functions ---
 
@@ -674,7 +667,6 @@ def handle_label_input(label):
     idx = st.session_state.current_index
     if 0 <= idx < len(st.session_state.df):
         st.session_state.df.loc[idx, LABEL_COLUMN] = label
-        save_data(st.session_state.df, auto_save=True)
 
         # 查找下一个未标注项 (优先查找当前项之后)
         next_unlabeled_index = st.session_state.df[
@@ -709,6 +701,12 @@ body.streamlit-dark .st-content-pre {
 }
 body.streamlit-dark .st-underline {
     text-decoration-color: #6B7280;
+}
+/* 标注按钮：数字 + 文字两行居中 */
+.stButton button {
+    white-space: pre-line !important;
+    text-align: center !important;
+    line-height: 1.3;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -779,7 +777,7 @@ with st.sidebar:
                 key='keyword_col_select'
             )
 
-            if st.button("🚀 **加载数据并开始标注**", type="primary", use_container_width=True):
+            if st.button("**加载数据并开始标注**", type="primary", use_container_width=True):
                 if text_col_select == company_col_select:
                     st.error("文本内容列和公司名列不能相同，请重新选择。")
                 else:
@@ -792,27 +790,18 @@ with st.sidebar:
         total_count = len(df)
         current_idx = st.session_state.current_index
 
-        # 1. Status and Save
+        # 1. Status and Download
         st.subheader("数据操作")
         
-        # 保存/下载按钮
-        col_save, col_download = st.columns(2)
-        with col_save:
-            if st.button("💾保存到内存", type="primary", use_container_width=True):
-                save_data(df, auto_save=False)
-                
-        with col_download:
-            if 'saved_data' in st.session_state:
-                base_name = st.session_state.file_name.replace('.xlsx', '').replace('.csv', '')
-                st.download_button(
-                    label="⬇️下载标注结果",
-                    data=st.session_state.saved_data,
-                    file_name=f"labeled_{base_name}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            else:
-                st.button("⬇️下载标注结果", disabled=True, use_container_width=True)
+        # 下载标注结果（每次渲染从当前数据现场生成 CSV）
+        base_name = st.session_state.file_name.replace('.xlsx', '').replace('.csv', '')
+        st.download_button(
+            label="下载标注结果",
+            data=df_to_csv_bytes(st.session_state.df),
+            file_name=f"labeled_{base_name}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
 
         st.markdown("---")
         
@@ -832,13 +821,13 @@ with st.sidebar:
         if current_idx != -1:
             st.subheader(f"标注 (ID: {current_idx + 1}/{total_count})")
             
-            # Labeling UI 
+            # Labeling UI（数字 + 文字两行居中，配合 CSS 的 white-space: pre-line）
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("1 (IED Commitment)", use_container_width=True, help="文本包含IED承诺/承诺推进相关指标"):
+                if st.button("1\nIED Commitment", use_container_width=True, help="文本包含IED承诺/承诺推进相关指标"):
                     handle_label_input(1)
             with col2:
-                if st.button("0 (None)", use_container_width=True, help="文本不包含IED承诺/与主题无关"):
+                if st.button("0\nNone", use_container_width=True, help="文本不包含IED承诺/与主题无关"):
                     handle_label_input(0)
                     
             label_map = {-1: '未标注', 1: 'IED Commitment', 0: 'None'}
@@ -978,8 +967,8 @@ else:
     <script>
     (function() {
         const KEY_MAP = {
-            '0': '0 (None)',
-            '1': '1 (IED Commitment)',
+            '0': '0\nNone',
+            '1': '1\nIED Commitment',
             'n': '下一项',
             'p': '上一项',
             'u': '下一未标注',

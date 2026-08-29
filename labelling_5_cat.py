@@ -194,6 +194,11 @@ KEYWORD_MARK_END = "</mark>"
 COMPANY_MARK_START = '<span style="background-color: lightblue; padding: 2px 4px; border-radius: 3px;">'
 COMPANY_MARK_END = '</span>'
 
+SENTENCE_UNDERLINE_START = '<span style="text-decoration: underline;">'
+SENTENCE_UNDERLINE_END = '</span>'
+
+SENTENCE_DELIMITER_REGEX = re.compile(r'(\n|[。！？!?；;])')
+
 
 # --- Navigation Functions ---
 
@@ -421,6 +426,22 @@ def clean_company_name(company_name):
 
     return "|".join(filter(None, all_patterns))
 
+def add_sentence_underline(text):
+    """给包含关键词/公司名特殊 token 的句子添加下划线。"""
+    parts = SENTENCE_DELIMITER_REGEX.split(text)
+    result = []
+    i = 0
+    while i < len(parts):
+        seg = parts[i]
+        delim = parts[i + 1] if i + 1 < len(parts) else ''
+        sentence = seg + delim
+        if (KEYWORD_START in sentence or COMPANY_START in sentence) and sentence.strip():
+            result.append(f'{SENTENCE_UNDERLINE_START}{sentence}{SENTENCE_UNDERLINE_END}')
+        else:
+            result.append(sentence)
+        i += 2
+    return ''.join(result)
+
 def highlight_text(text, company_name, cs_pattern, ci_pattern):
     """
     Highlights text using HTML marks.
@@ -439,6 +460,9 @@ def highlight_text(text, company_name, cs_pattern, ci_pattern):
     if is_tokenized:
         # --- MODE 1: Replace Tokens with HTML Marks ---
         
+        # 0. Underline sentences that contain special tokens
+        text = add_sentence_underline(text)
+
         # 1. Company Replacement
         # Regex to find: [COMPANY_START]...[COMPANY_END] (non-greedy match for content)
         token_co_pattern = re.escape(COMPANY_START) + r'(.*?)' + re.escape(COMPANY_END)
@@ -510,14 +534,10 @@ def create_and_show_stacked_bar(df):
         return
 
     # 标签映射和颜色配置
-    # 注意：我们按 0, 1, 2, 3, 4, -1 的顺序处理，以便堆叠和表格渲染
     label_info = {
-        0: {'name': '0 (不相关)', 'color': '#FFFFFF'},
-        1: {'name': '1 (继续)', 'color': '#28A745'},
-        2: {'name': '2 (减少)', 'color': '#DC3545'},
-        3: {'name': '3 (不明确)', 'color': '#FFC107'},
-        4: {'name': '4（重新包装)', 'color': '#4682B4'}, # 修正颜色格式
-        -1: {'name': '-1 (未标注)', 'color': '#AAAAAA'}
+        1: {'name': '1 (IED Commitment)', 'color': '#28A745'},
+        0: {'name': '0 (None)', 'color': '#AAAAAA'},
+        -1: {'name': '-1 (未标注)', 'color': '#FFFFFF'}
     }
 
     # 统计每个标签的数量并计算百分比
@@ -637,7 +657,7 @@ def handle_label_input(label):
 
 # --- Streamlit Interface ---
 
-st.title("DEI标注工具 (4类别)")
+st.title("IED标注工具 (2类别)")
 
 # --- Sidebar for Data Loading and Column Selection ---
 with st.sidebar:
@@ -732,33 +752,20 @@ with st.sidebar:
         
 
         
-        # 3. Labeling Buttons (4 categories)
+        # 3. Labeling Buttons (2 categories)
         if current_idx != -1:
             st.subheader(f"标注 (ID: {current_idx + 1}/{total_count})")
             
             # Labeling UI 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("1 (继续)", use_container_width=True, help="维持/继续DEI/EDI相关指标"):
+                if st.button("1 (IED Commitment)", use_container_width=True, help="文本包含IED承诺/承诺推进相关指标"):
                     handle_label_input(1)
             with col2:
-                if st.button("2 (减少)", use_container_width=True, help="DEI/EDI相关指标出现减少"):
-                    handle_label_input(2)
-            
-            col3, col4 = st.columns(2)
-            with col3:
-                if st.button("3 (不明确)", use_container_width=True, help="文本未明确提及变化"):
-                    handle_label_input(3)
-            with col4:
-                if st.button("4 (重新包装)", use_container_width=True, help="重新包装DEI相关表述"):
-                    handle_label_input(4)
-
-            col5, _ = st.columns([1, 1])
-            with col5:
-                if st.button("0 (不相关)", use_container_width=True, help="文本内容与DEI/EDI主题不相关"):
+                if st.button("0 (None)", use_container_width=True, help="文本不包含IED承诺/与主题无关"):
                     handle_label_input(0)
                     
-            label_map = {-1: '未标注', 1: '继续', 2: '减少', 3: '不明确', 4: '重新包装', 0: '不相关'}
+            label_map = {-1: '未标注', 1: 'IED Commitment', 0: 'None'}
             
             previous_label = df.loc[current_idx, LABEL_COLUMN]
             st.info(f"当前标签: **{label_map.get(previous_label, '未知')}**")
@@ -808,11 +815,8 @@ with st.sidebar:
         st.markdown("""
 | 按键 | 功能 |
 |------|------|
-| `1` | 继续 |
-| `2` | 减少 |
-| `3` | 不明确 |
-| `4` | 重新包装 |
-| `0` | 不相关 |
+| `1` | IED Commitment |
+| `0` | None |
 | `→` / `n` | 下一项 |
 | `←` / `p` | 上一项 |
 | `u` | 下一未标注 |
@@ -820,7 +824,8 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("5. 高亮规则")
         st.markdown(f"- **蓝色:** 公司名关键词 (`{st.session_state.COMPANY_COLUMN}` 提取)")
-        st.markdown("- **黄色:** DEI/EDI 关键词")
+        st.markdown("- **黄色:** IED 关键词")
+        st.markdown("- **下划线:** 包含关键词/公司名 special token 的句子")
         st.markdown("- **全大写**关键词区分大小写。")
 
 
@@ -878,11 +883,8 @@ else:
     <script>
     (function() {
         const KEY_MAP = {
-            '0': '0 (不相关)',
-            '1': '1 (继续)',
-            '2': '2 (减少)',
-            '3': '3 (不明确)',
-            '4': '4 (重新包装)',
+            '0': '0 (None)',
+            '1': '1 (IED Commitment)',
             'n': '下一项',
             'p': '上一项',
             'u': '下一未标注',

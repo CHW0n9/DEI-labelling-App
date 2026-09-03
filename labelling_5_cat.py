@@ -566,7 +566,7 @@ def create_and_show_stacked_bar(df):
 
     # 标签映射和颜色配置
     label_info = {
-        1: {'name': '1 (IED Commitment)', 'color': '#28A745'},
+        1: {'name': '1 (IED Action)', 'color': '#28A745'},
         0: {'name': '0 (None)', 'color': '#AAAAAA'},
         -1: {'name': '-1 (未标注)', 'color': '#D0D0D0'}
     }
@@ -833,13 +833,13 @@ with st.sidebar:
             # Labeling UI（数字 + 文字两行居中，配合 CSS 的 white-space: pre-line）
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("1\nIED Commitment", use_container_width=True, help="文本包含IED承诺/承诺推进相关指标"):
+                if st.button("1\nIED Action", use_container_width=True, help="文本包含IED行动"):
                     handle_label_input(1)
             with col2:
-                if st.button("0\nNone", use_container_width=True, help="文本不包含IED承诺/与主题无关"):
+                if st.button("0\nNone", use_container_width=True, help="文本不包含IED行动/与主题无关"):
                     handle_label_input(0)
                     
-            label_map = {-1: '未标注', 1: 'IED Commitment', 0: 'None'}
+            label_map = {-1: '未标注', 1: 'IED Action', 0: 'None'}
             
             previous_label = df.loc[current_idx, LABEL_COLUMN]
             st.info(f"当前标签: **{label_map.get(previous_label, '未知')}**")
@@ -889,7 +889,7 @@ with st.sidebar:
         st.markdown("""
 | 按键 | 功能 |
 |------|------|
-| `1` | IED Commitment |
+| `1` | IED Action |
 | `0` | None |
 | `→` / `n` | 下一项 |
 | `←` / `p` | 上一项 |
@@ -977,7 +977,7 @@ else:
     (function() {
         const KEY_MAP = {
             '0': '0\nNone',
-            '1': '1\nIED Commitment',
+            '1': '1\nIED Action',
             'n': '下一项',
             'p': '上一项',
             'u': '下一未标注',
@@ -1023,7 +1023,7 @@ else:
             const btns = parentDoc.querySelectorAll('button');
             for (const b of btns) {
                 const t = (b.innerText || '').trim();
-                if (t === '1\nIED Commitment' || t === '0\nNone') {
+                if (t === '1\nIED Action' || t === '0\nNone') {
                     b.classList.add('st-big-num');
                 }
             }
